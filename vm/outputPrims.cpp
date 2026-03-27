@@ -914,6 +914,295 @@ static void IRAM_ATTR sendNeoPixelData(int val) { // ESP32
 	rmt_write_items(RMT_CHANNEL_0, rmt_buffer, neoPixelBits, false);
 }
 
+#pragma region rmt one-wire
+
+// ============================================================
+// Generic custom one-wire waveform sender using ESP32 RMT
+// Primitive layer only provides:
+//   1) channel-based protocol initialization
+//   2) channel-based sending of exactly 8 bytes with per-byte gaps
+//
+// Device-specific frame construction (display, light bar, etc.)
+// should be implemented in GP Script, not here.
+// ============================================================
+
+#if defined(ARDUINO_ARCH_ESP32)
+
+#define CUSTOM_OW_MAX_CHANNELS 2
+#define CUSTOM_OW_FRAME_BYTES 8
+#define CUSTOM_OW_MAX_ITEMS (CUSTOM_OW_FRAME_BYTES * 8) // 8 bytes * 8 bits
+
+typedef struct
+{
+	bool configured;
+	int pin;
+	rmt_channel_t channel;
+	rmt_idle_level_t idleLevel;
+	uint16_t zeroLowTicks;
+	uint16_t zeroHighTicks;
+	uint16_t oneLowTicks;
+	uint16_t oneHighTicks;
+} CustomOWChannelConfig;
+
+// One independent protocol config per RMT channel.
+static CustomOWChannelConfig customOWConfigs[CUSTOM_OW_MAX_CHANNELS];
+
+// One independent buffer per RMT channel.
+static rmt_item32_t customOWBuffers[CUSTOM_OW_MAX_CHANNELS][CUSTOM_OW_MAX_ITEMS];
+static int customOWCounts[CUSTOM_OW_MAX_CHANNELS] = {0,};
+static bool customOWDriversInstalled[CUSTOM_OW_MAX_CHANNELS] = {false,};
+
+// ------------------------------------------------------------
+// Helpers
+// ------------------------------------------------------------
+
+static bool customOWValidChannel(int channel)
+{
+	return (channel >= 0) && (channel < CUSTOM_OW_MAX_CHANNELS);
+}
+
+static rmt_channel_t customOWToRMTChannel(int channel)
+{
+	// The enum values are normally aligned with 0..3 on ESP32.
+	return (rmt_channel_t)channel;
+}
+
+static void customOWResetBuffer(int channel)
+{
+	customOWCounts[channel] = 0;
+}
+
+static bool customOWBufferFull(int channel)
+{
+	return customOWCounts[channel] >= CUSTOM_OW_MAX_ITEMS;
+}
+
+static void customOWAppendBit(int channel, bool bit)
+{
+	if (!customOWValidChannel(channel))
+		return;
+	if (customOWBufferFull(channel))
+		return;
+	if (!customOWConfigs[channel].configured)
+		return;
+
+	CustomOWChannelConfig &cfg = customOWConfigs[channel];
+	rmt_item32_t &item = customOWBuffers[channel][customOWCounts[channel]];
+
+	item.level0 = !cfg.idleLevel;
+	item.duration0 = bit ? cfg.oneLowTicks : cfg.zeroLowTicks;
+	item.level1 = cfg.idleLevel;
+	item.duration1 = bit ? cfg.oneHighTicks : cfg.zeroHighTicks;
+
+	customOWCounts[channel]++;
+}
+
+static void customOWAppendByteLSB(int channel, uint8_t value)
+{
+	// Send LSB first to match the user's existing working protocol.
+	for (int i = 0; i < 8; i++)
+	{
+		customOWAppendBit(channel, (value >> i) & 0x01);
+	}
+}
+
+static void customOWAppendGapUs(int channel, int microseconds)
+{
+	// Gap is implemented by extending the trailing duration1 of the
+	// last bit already appended.
+	if (!customOWValidChannel(channel))
+		return;
+	if (customOWCounts[channel] <= 0)
+		return;
+	if (microseconds <= 0)
+		return;
+
+	customOWBuffers[channel][customOWCounts[channel] - 1].duration1 += (microseconds * 80);
+	// clk_div = 1 => 80 MHz APB => 1 us = 80 ticks
+}
+
+static void customOWSendBuffer(int channel)
+{
+	if (!customOWValidChannel(channel))
+		return;
+	if (!customOWConfigs[channel].configured)
+		return;
+	if (customOWCounts[channel] <= 0)
+		return;
+
+	rmt_write_items(customOWConfigs[channel].channel,
+					customOWBuffers[channel],
+					customOWCounts[channel],
+					false);
+
+	rmt_wait_tx_done(customOWConfigs[channel].channel, portMAX_DELAY);
+	customOWCounts[channel] = 0;
+}
+
+static void customOWInitChannel(
+	int pinNum,
+	int channel,
+	int idleLevel,
+	int zeroLowTicks,
+	int zeroHighTicks,
+	int oneLowTicks,
+	int oneHighTicks)
+{
+	if (!customOWValidChannel(channel))
+		return;
+
+	CustomOWChannelConfig &cfg = customOWConfigs[channel];
+	cfg.configured = true;
+	cfg.pin = pinNum;
+	cfg.channel = customOWToRMTChannel(channel);
+	cfg.idleLevel = idleLevel ? RMT_IDLE_LEVEL_HIGH : RMT_IDLE_LEVEL_LOW;
+	cfg.zeroLowTicks = (uint16_t)zeroLowTicks;
+	cfg.zeroHighTicks = (uint16_t)zeroHighTicks;
+	cfg.oneLowTicks = (uint16_t)oneLowTicks;
+	cfg.oneHighTicks = (uint16_t)oneHighTicks;
+
+	if (!customOWDriversInstalled[channel])
+	{
+		rmt_config_t config = {};
+		config.rmt_mode = RMT_MODE_TX;
+		config.channel = cfg.channel;
+		config.gpio_num = (gpio_num_t)pinNum;
+		config.clk_div = 1; // 80 MHz, 12.5 ns per tick
+		config.mem_block_num = 1;
+		config.tx_config.loop_en = false;
+		config.tx_config.idle_output_en = true;
+		config.tx_config.idle_level = cfg.idleLevel;
+
+		rmt_config(&config);
+		rmt_driver_install(cfg.channel, 0, 0);
+		customOWDriversInstalled[channel] = true;
+	}
+	else
+	{
+		// Reconfigure this channel for a new pin or new idle level.
+		rmt_set_pin(cfg.channel, RMT_MODE_TX, (gpio_num_t)pinNum);
+		rmt_set_idle_level(cfg.channel, true, cfg.idleLevel);
+	}
+
+	customOWResetBuffer(channel);
+	taskSleep(1);
+}
+
+// ------------------------------------------------------------
+// Primitives
+// ------------------------------------------------------------
+
+// customOWInit(pin, channel, idleLevel, zeroLowTicks, zeroHighTicks, oneLowTicks, oneHighTicks)
+OBJ primCustomOWInit(int argCount, OBJ *args)
+{
+	if (argCount < 7)
+		return fail(notEnoughArguments);
+
+	for (int i = 0; i < 7; i++)
+	{
+		if (!isInt(args[i]))
+			return fail(needsIntegerError);
+	}
+
+	int pinNum = mapDigitalPinNum(obj2int(args[0]));
+	if ((pinNum < 0) || (pinNum >= pinCount()))
+		return fail(needsIntegerError);
+
+	int channel = obj2int(args[1]);
+	if (!customOWValidChannel(channel))
+		return fail(needsIntegerError);
+
+	int idleLevel = obj2int(args[2]);
+	int zeroLowTicks = obj2int(args[3]);
+	int zeroHighTicks = obj2int(args[4]);
+	int oneLowTicks = obj2int(args[5]);
+	int oneHighTicks = obj2int(args[6]);
+
+	if (zeroLowTicks < 0)
+		zeroLowTicks = 0;
+	if (zeroHighTicks < 0)
+		zeroHighTicks = 0;
+	if (oneLowTicks < 0)
+		oneLowTicks = 0;
+	if (oneHighTicks < 0)
+		oneHighTicks = 0;
+
+	customOWInitChannel(
+		pinNum,
+		channel,
+		idleLevel,
+		zeroLowTicks,
+		zeroHighTicks,
+		oneLowTicks,
+		oneHighTicks);
+
+	return falseObj;
+}
+
+// customOWSend8(channel, byteList, gapList)
+// byteList: exactly 8 integers (0..255)
+// gapList: exactly 8 integers, gap in microseconds after each byte
+OBJ primCustomOWSend8(int argCount, OBJ *args)
+{
+	if (argCount < 3)
+		return fail(notEnoughArguments);
+
+	if (!isInt(args[0]))
+		return fail(needsIntegerError);
+	int channel = obj2int(args[0]);
+	if (!customOWValidChannel(channel))
+		return fail(needsIntegerError);
+	if (!customOWConfigs[channel].configured)
+		return fail(needsIntegerError);
+
+	OBJ byteList = args[1];
+	OBJ gapList = args[2];
+
+	if (!IS_TYPE(byteList, ListType))
+		return fail(needsListError);
+	if (!IS_TYPE(gapList, ListType))
+		return fail(needsListError);
+
+	int byteCount = obj2int(FIELD(byteList, 0));
+	int gapCount = obj2int(FIELD(gapList, 0));
+
+	if (byteCount != CUSTOM_OW_FRAME_BYTES)
+		return fail(needsListError);
+	if (gapCount != CUSTOM_OW_FRAME_BYTES)
+		return fail(needsListError);
+
+	customOWResetBuffer(channel);
+
+	for (int i = 0; i < CUSTOM_OW_FRAME_BYTES; i++)
+	{
+		OBJ byteObj = FIELD(byteList, i + 1);
+		OBJ gapObj = FIELD(gapList, i + 1);
+
+		if (!isInt(byteObj))
+			return fail(needsIntegerError);
+		if (!isInt(gapObj))
+			return fail(needsIntegerError);
+
+		int value = obj2int(byteObj) & 255;
+		int gapUs = obj2int(gapObj);
+		if (gapUs < 0)
+			gapUs = 0;
+
+		customOWAppendByteLSB(channel, (uint8_t)value);
+		if (gapUs > 0)
+		{
+			customOWAppendGapUs(channel, gapUs);
+		}
+	}
+
+	customOWSendBuffer(channel);
+	return falseObj;
+}
+
+#endif
+
+#pragma endregion
+
 #elif defined(ARDUINO_ARCH_RP2040) && !defined(__MBED__) // Philhower framework (PicoSDK)
 
 static int neoPixelPin = -1;
@@ -1324,6 +1613,8 @@ static PrimEntry entries[] = {
 	{"neoPixelSetPin", primNeoPixelSetPin},
 	{"neoPixelSetMaxBrightness", primNeoPixelSetMaxBrightness},
 	{"neoPixelSetRGB", primNeoPixelSetRGB},
+	{"customOWInit", primCustomOWInit},
+	{"customOWSend8", primCustomOWSend8},
 };
 
 void addDisplayPrims() {
