@@ -1,0 +1,74 @@
+name: Build and Deploy MicroBlocks WebApp
+
+on:
+  push:
+    branches: [ test-rmt-onewire ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 4.0.10
+
+      - name: Verify toolchain
+        run: |
+          emcc -v
+          python3 --version
+          node --version
+          bash --version
+
+      - name: Show repo tree
+        run: |
+          pwd
+          ls -lah
+          ls -lah chromeApp || true
+          ls -lah chromeApp/emscripten || true
+
+      - name: Make build script executable
+        run: chmod +x chromeApp/emscripten/buildEmcc.sh
+
+      - name: Build webapp
+        working-directory: chromeApp/emscripten
+        shell: bash
+        run: ./buildEmcc.sh
+
+      - name: Check outputs
+        run: |
+          ls -lah chromeApp/webapp || true
+          ls -lah chromeApp/MicroBlocks || true
+          find chromeApp/MicroBlocks -maxdepth 2 -type f | sort || true
+
+      - name: Add .nojekyll
+        run: touch chromeApp/MicroBlocks/.nojekyll
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: chromeApp/MicroBlocks
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
