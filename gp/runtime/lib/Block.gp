@@ -147,7 +147,7 @@ method fixLayout Block {
 	// arrange label parts horizontally and break up into lines
 	op = (primName expression)
 	breakLineBeforeFirstArg = (isOneOf op '[display:mbDisplay]' 'setNeoPixelColors10')
-	maxArgsPerLine = 8
+	maxArgsPerLine = 6
 	if ('setNeoPixelColors10' == op) { maxArgsPerLine = 5 }
 	currentLine = (list)
 	for group labelParts {

@@ -1,0 +1,65 @@
+name: Build MicroBlocks WebApp
+
+on:
+  push:
+    branches: [ test-rmt-onewire ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-webapp:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 4.0.10
+
+      - name: Verify toolchain
+        run: |
+          emcc -v
+          python3 --version
+          node --version
+          bash --version
+
+      - name: Make build script executable
+        run: chmod +x emscripten/buildEmcc.sh
+
+      - name: Build webapp
+        working-directory: emscripten
+        shell: bash
+        run: ./buildEmcc.sh
+
+      - name: Check outputs
+        run: |
+          ls -lah webapp || true
+          ls -lah MicroBlocks || true
+
+      - name: Upload webapp artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: microblocks-webapp
+          path: |
+            webapp/gp_wasm.js
+            webapp/gp_wasm.wasm
+            webapp/gp_wasm.data
+          if-no-files-found: error
+
+      - name: Upload MicroBlocks artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: microblocks-microblocks-dir
+          path: |
+            MicroBlocks/gp_wasm.js
+            MicroBlocks/gp_wasm.wasm
+            MicroBlocks/gp_wasm.data
+          if-no-files-found: error
