@@ -31,27 +31,34 @@ jobs:
           node --version
           bash --version
 
+      - name: Show repo tree
+        run: |
+          pwd
+          ls -lah
+          ls -lah chromeApp || true
+          ls -lah chromeApp/emscripten || true
+
       - name: Make build script executable
-        run: chmod +x emscripten/buildEmcc.sh
+        run: chmod +x chromeApp/emscripten/buildEmcc.sh
 
       - name: Build webapp
-        working-directory: emscripten
+        working-directory: chromeApp/emscripten
         shell: bash
         run: ./buildEmcc.sh
 
       - name: Check outputs
         run: |
-          ls -lah webapp || true
-          ls -lah MicroBlocks || true
+          ls -lah chromeApp/webapp || true
+          ls -lah chromeApp/MicroBlocks || true
 
       - name: Upload webapp artifact
         uses: actions/upload-artifact@v4
         with:
           name: microblocks-webapp
           path: |
-            webapp/gp_wasm.js
-            webapp/gp_wasm.wasm
-            webapp/gp_wasm.data
+            chromeApp/webapp/gp_wasm.js
+            chromeApp/webapp/gp_wasm.wasm
+            chromeApp/webapp/gp_wasm.data
           if-no-files-found: error
 
       - name: Upload MicroBlocks artifact
@@ -59,7 +66,7 @@ jobs:
         with:
           name: microblocks-microblocks-dir
           path: |
-            MicroBlocks/gp_wasm.js
-            MicroBlocks/gp_wasm.wasm
-            MicroBlocks/gp_wasm.data
+            chromeApp/MicroBlocks/gp_wasm.js
+            chromeApp/MicroBlocks/gp_wasm.wasm
+            chromeApp/MicroBlocks/gp_wasm.data
           if-no-files-found: error
