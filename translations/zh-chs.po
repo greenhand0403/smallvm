@@ -5017,15 +5017,19 @@ msgstr "返回CoCube电池电量百分比"
 
 #. OnbotsESP32 library label
 msgid "OnbotsESP32"
-msgstr "ESP32基础款"
+msgstr "arduino-start-esp32套件"
 
-#. OnbotsESP32 library label
+#. OnbotsESP32 library block
 msgid "#SVG#square11#4852bf init led display _"
 msgstr "设置数码管连接到引脚"
 
-#. OnbotsESP32 library label
+#. OnbotsESP32 library block
 msgid "#SVG#square11#4852bf init led light _"
 msgstr "设置灯柱连接到引脚"
+
+#. OnbotsESP32 library block
+msgid "set NeoPixels #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _"
+msgstr "设置8x8点阵屏显示图案"
 
 #. Settings menu option
 msgid "inform of new versions"
