@@ -5020,8 +5020,12 @@ msgid "OnbotsESP32"
 msgstr "ESP32基础款"
 
 #. OnbotsESP32 library label
-msgid "init led display"
+msgid "#SVG#square11#4852bf init led display _"
 msgstr "设置数码管连接到引脚"
+
+#. OnbotsESP32 library label
+msgid "#SVG#square11#4852bf init led light _"
+msgstr "设置灯柱连接到引脚"
 
 #. Settings menu option
 msgid "inform of new versions"
