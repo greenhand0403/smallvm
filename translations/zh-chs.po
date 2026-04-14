@@ -5019,6 +5019,10 @@ msgstr "返回CoCube电池电量百分比"
 msgid "OnbotsESP32"
 msgstr "ESP32基础款"
 
+msgid "init led display"
+msgstr "设置四位数码管"
+
+
 #. Settings menu option
 msgid "inform of new versions"
 msgstr "通知新版本"
