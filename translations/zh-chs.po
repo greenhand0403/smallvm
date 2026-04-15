@@ -5021,11 +5021,11 @@ msgstr "arduino-start-esp32套件"
 
 #. OnbotsESP32 library block
 msgid "#SVG#square11#4852bf init led display _"
-msgstr "设置数码管连接到引脚 _"
+msgstr "#SVG#square11#4852bf 设置数码管连接到引脚 _"
 
 #. OnbotsESP32 library block
 msgid "#SVG#square11#4852bf init led light _"
-msgstr "设置灯柱连接到引脚 _"
+msgstr "#SVG#square11#4852bf 设置灯柱连接到引脚 _"
 
 #. OnbotsESP32 library block
 msgid "set NeoPixels #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _"
