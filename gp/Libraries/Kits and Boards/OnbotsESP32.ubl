@@ -1,0 +1,289 @@
+module 'OnbotsESP32' MyBlocks
+author 'wang cheng'
+version 1 0 
+depends 'dec2anyBase' 'Distance (HC-SR04)' 'Servo' 'Tone' 'Color' 'NeoPixel'
+choices onbots_pins 'IO0' 'IO1' 'IO3' 'IO4' 'IO5'
+choices onbots_display_mark1 'display_mark1;empty' 'display_mark1;celsius' 'display_mark1;colon' 'display_mark1;decile' 'display_mark1;centimeter'
+choices onbots_display_mark2 'display_mark2;empty' 'display_mark2;error' 'display_mark2;mA' 'display_mark2;kelvin' 'display_mark2;ohm' 'display_mark2;kilohm' 'display_mark2;voltage' 'display_mark2;lux' 'display_mark2;dB'
+description ''
+variables _numSegments _thermistor _soundpin _soundwindow _sounddebounce _soundclapthr _soundclapstartmillis _soundloudness _RGBPIN_R _RGBPIN_G _RGBPIN_B
+
+  spec ' ' 'init led display' '#SVG#square#4852bf init led display _' 'menu.onbots_pins' 'IO1'
+  spec ' ' 'init led light' '#SVG#test init led light _' 'menu.onbots_pins' 'IO1'
+  spec ' ' 'led display send' '#SVG#phototransistor led display send _ _ _' 'num menu.onbots_display_mark1 menu.onbots_display_mark2' 10 'display_mark1;empty' 'display_mark2;empty'
+  spec ' ' 'led light send' '#SVG#square11#4852bf led light send _' 'num' 1
+  space
+  spec 'r' 'light level' '#SVG#square11#9f42a5 light level(lux) pulluppin _ readpin _' 'menu.onbots_pins menu.onbots_pins' 'IO1' 'IO3'
+  spec 'r' 'temperature' '#SVG#square11#9f42a5 temperature(°C) pulluppin _ readpin _' 'menu.onbots_pins menu.onbots_pins' 'IO1' 'IO3'
+  spec 'r' 'slide rheostat' '#SVG#square11#9f42a5 slide rheostat pulluppin _ readpin _' 'menu.onbots_pins menu.onbots_pins' 'IO1' 'IO3'
+  spec 'r' 'read button' '#SVG#square11#9f42a5 read button _' 'menu.onbots_pins' 'IO1'
+  space
+  spec ' ' 'sound clapthr' '#SVG#square11#9f42a5 sound clapthr _' 'num' 300
+  spec ' ' 'sound pin' '#SVG#square11#9f42a5 sound pulluppin _ readpin _' 'menu.onbots_pins menu.onbots_pins' 'IO1' 'IO3'
+  spec 'r' 'sound clap' '#SVG#square11#9f42a5 sound clap'
+  spec 'r' 'sound level' '#SVG#square11#9f42a5 sound level(dB)'
+  space
+  spec ' ' 'set RGB' 'set RGB _ _ _ (0~255)' 'num num num' 255 0 0
+  spec ' ' 'set RGB color' 'set RGB color _' 'color'
+  spec ' ' 'set RGB pin' 'set RGB pins _ _ _' 'menu.onbots_pins menu.onbots_pins menu.onbots_pins' 'IO0' 'IO1' 'IO3'
+  space
+  spec ' ' 'setNeoPixelColors64' 'set NeoPixels #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _ #BR# _ _ _ _ _ _ _ _' 'color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color color'
+  space
+  advanced
+  spec ' ' '_init_onewire_rmt' '_init_onewire_rmt _ _ _' 'num num num' 10 10 10
+  spec ' ' '_send_onewire_rmt_8byte' '_send_onewire_rmt_8byte _ _ _' 'num num num' 10 10 10
+  spec 'r' '_onbots_iotopins' '_onbots_iotopins _' 'menu.onbots_pins' 'IO5'
+  spec 'r' '_onbots_display_mark1' '_onbots_display_mark1 _' 'menu.onbots_display_mark1' 'null'
+  spec 'r' '_onbots_display_mark2' '_onbots_display_mark2 _' 'menu.onbots_display_mark2' 'null'
+
+to '_onbots_iotopins' pin {
+  if (pin == 'IO0') {
+    return 0
+  }
+  if (pin == 'IO1') {
+    return 1
+  }
+  if (pin == 'IO3') {
+    return 3
+  }
+  if (pin == 'IO4') {
+    return 4
+  }
+  if (pin == 'IO5') {
+    return 5
+  }
+}
+
+to '_onbots_display_mark1' mark1 {
+  if (mark1 == 'display_mark1;empty') {
+    return 0
+  }
+  if (mark1 == 'display_mark1;celsius') {
+    return 1
+  }
+  if (mark1 == 'display_mark1;colon') {
+    return 2
+  }
+  if (mark1 == 'display_mark1;decile') {
+    return 3
+  }
+  if (mark1 == 'display_mark1;centimeter') {
+    return 4
+  }
+}
+
+to '_onbots_display_mark2' mark2 {
+  if (mark2 == 'display_mark2;empty') {
+    return 0
+  }
+  if (mark2 == 'display_mark2;error') {
+    return 1
+  }
+  if (mark2 == 'display_mark2;mA') {
+    return 2
+  }
+  if (mark2 == 'display_mark2;kelvin') {
+    return 4
+  }
+  if (mark2 == 'display_mark2;ohm') {
+    return 8
+  }
+  if (mark2 == 'display_mark2;kilohm') {
+    return 12
+  }
+  if (mark2 == 'display_mark2;voltage') {
+    return 16
+  }
+  if (mark2 == 'display_mark2;lux') {
+    return 32
+  }
+  if (mark2 == 'display_mark2;dB') {
+    return 64
+  }
+}
+
+to 'init led display' pin {
+  comment 'channel 1 idle level low'
+  '_init_onewire_rmt' (_onbots_iotopins pin) 1 0
+  comment '7-segment font table for digits 0..9'
+  _numSegments = ('[data:makeList]' 63 6 91 79 102 109 125 7 127 111)
+}
+
+to 'init led light' pin {
+  comment 'channel 0 idle level high'
+  '_init_onewire_rmt' (_onbots_iotopins pin) 0 1
+}
+
+to '_init_onewire_rmt' pin channel idlelevel {
+  comment 'customOWInit(pin, channel, idleLevel, zeroLowTicks, zeroHighTicks, oneLowTicks, oneHighTicks)'
+  callCustomCommand '[display:customOWInit]' ('[data:makeList]' pin channel idlelevel 32 528 50 510)
+}
+
+to 'led display send' num mark1 mark2 {
+  comment 'num:0~9999
+mark1:1~4
+#define STR_CELSIUS_SYMBOL 1
+#define STR_COLON_SYMBOL 2
+#define STR_DECILE_SYMBOL 3
+#define STR_CENTIMETER_SYMBOL 4
+mark2:1~64
+#define STR_ERROR_SYMBOL 1
+#define STR_MA_SYMBOL 2
+#define STR_KELVIN_SYMBOL 4
+#define STR_OHM_SYMBOL 8
+#define STR_KOHM_SYMBOL 12
+#define STR_VOLTAGE_SYMBOL 16
+#define STR_LUX_SYMBOL 32
+#define STR_DB_SYMBOL 64'
+  local 'k' ((num / 1000) % 10)
+  local 'h' ((num / 100) % 10)
+  local 't' ((num / 10) % 10)
+  local 'o' (num % 10)
+  local '_byteList' ('[data:makeList]' (at (k + 1) _numSegments) (at (h + 1) _numSegments) (at (t + 1) _numSegments) (at (o + 1) _numSegments) 0 0 0 0)
+  comment 'mark1:1~4'
+  mark1 = (_onbots_display_mark1 mark1)
+  if (and (mark1 > 0) (mark1 < 5)) {
+    atPut mark1 _byteList ((at mark1 _byteList) + 128)
+  }
+  comment 'mark2:1~64'
+  mark2 = (_onbots_display_mark2 mark2)
+  if (and (mark2 > 0) (mark2 < 65)) {
+    for i 4 {
+      atPut (4 + i) _byteList mark2
+    }
+  }
+  local '_gapList' (newList 8 0)
+  for i 4 {
+    atPut i _gapList 10
+  }
+  '_send_onewire_rmt_8byte' 1 _byteList _gapList
+}
+
+to 'led light send' mark {
+  comment 'mark = 5
+auto turn to 1010 0000
+mean turn the first and 3th LED
+mostly use in loop with delay 25 ms'
+  local '_byteList' ('[data:split]' ('dec2any Base' '2' mark 8 true) '' true)
+  for i 8 {
+    atPut i _byteList ('[data:convertType]' (at i _byteList) 'number')
+  }
+  callCustomCommand '[display:customOWSend8]' ('[data:makeList]' 0 _byteList (newList 8 0))
+}
+
+to '_send_onewire_rmt_8byte' channel byteList gapList {
+  comment 'customOWSend8(channel, byteList, gapList)
+byteList: exactly 8 integers (0..255)
+gapList: exactly 8 integers, gap in microseconds after each byte'
+  callCustomCommand '[display:customOWSend8]' ('[data:makeList]' channel byteList gapList)
+}
+
+to 'light level' pulluppin readpin {
+  comment '10k pulldown register return Lux use phototriode
+if use photistoristor, should divide by two'
+  digitalWriteOp (_onbots_iotopins pulluppin) true
+  return (((analogReadOp (_onbots_iotopins readpin)) * 11) / 15)
+}
+
+to 'temperature' pulluppin readpin {
+  comment '10k pullup register return ℃'
+  local 'T' 0
+  digitalWriteOp (_onbots_iotopins pulluppin) true
+  R = (((analogReadOp (_onbots_iotopins readpin)) * 10000) / (1023 - (analogReadOp (_onbots_iotopins readpin))))
+  if (R > 30000) {
+    T = (113000 - (R * 3))
+  } (R > 10000) {
+    T = (364000 - (R * 11))
+  } (R > 3000) {
+    T = (676000 - (R * 43))
+  } else {
+    T = (1042000 - (R * 165))
+  }
+  return (T / 10000)
+}
+
+to 'slide rheostat' pulluppin readpin {
+  comment '10k pullup register
+1022 / 1071 is error coefficient'
+  digitalWriteOp (_onbots_iotopins pulluppin) true
+  return ((((analogReadOp (_onbots_iotopins readpin)) * 10000) * 1022) / ((1023 - (analogReadOp (_onbots_iotopins readpin))) * 1071))
+}
+
+to 'read button' readpin {
+  comment 'read button 1/3/4/5'
+  return (digitalReadOp (_onbots_iotopins readpin) 'up')
+}
+
+to 'sound clapthr' clapthr {
+  _soundclapthr = clapthr
+  comment '200ms'
+  _sounddebounce = 200
+  _soundclapstartmillis = 0
+}
+
+to 'sound pin' pin readpin {
+  comment 'pulldown 10k R return 40~70 DB'
+  digitalWriteOp (_onbots_iotopins pin) true
+  _soundpin = (_onbots_iotopins readpin)
+  comment '30ms'
+  _soundwindow = 30
+}
+
+to 'sound clap' {
+  if (((millisOp) - _soundclapstartmillis) >= _sounddebounce) {if (_soundloudness > _soundclapthr) {
+    _soundclapstartmillis = (millisOp)
+    return (booleanConstant true)
+  }}
+  return (booleanConstant false)
+}
+
+to 'sound level' {
+  comment 'you can delay 20ms to read'
+  local 'startMillis' (millisOp)
+  local 'signalMax' 0
+  local 'signalMin' 1024
+  local 'sample' 0
+  repeatUntil (((millisOp) - startMillis) >= _soundwindow) {
+    sample = (analogReadOp _soundpin)
+    if (sample < signalMin) {
+      signalMin = sample
+    }
+    if (sample > signalMax) {
+      signalMax = sample
+    }
+  }
+  _soundloudness = (signalMax - signalMin)
+  if (_soundloudness < 4) {
+    return 0
+  } (_soundloudness > 410) {
+    return 1023
+  } else {
+    return ('[misc:rescale]' _soundloudness 4 410 40 70)
+  }
+}
+
+to 'set RGB' R G B {
+  analogWriteOp _RGBPIN_R ('[misc:rescale]' R 0 255 0 1023)
+  analogWriteOp _RGBPIN_G ('[misc:rescale]' G 0 255 0 1023)
+  analogWriteOp _RGBPIN_B ('[misc:rescale]' B 0 255 0 1023)
+}
+
+to 'set RGB color' c {
+  analogWriteOp _RGBPIN_R ('[misc:rescale]' (color_red c) 0 255 0 1023)
+  analogWriteOp _RGBPIN_G ('[misc:rescale]' (color_green c) 0 255 0 1023)
+  analogWriteOp _RGBPIN_B ('[misc:rescale]' (color_blue c) 0 255 0 1023)
+}
+
+to 'set RGB pin' R G B {
+  _RGBPIN_R = (_onbots_iotopins R)
+  _RGBPIN_G = (_onbots_iotopins G)
+  _RGBPIN_B = (_onbots_iotopins B)
+}
+
+to setNeoPixelColors64 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 c15 c16 c17 c18 c19 c20 c21 c22 c23 c24 c25 c26 c27 c28 c29 c30 c31 c32 c33 c34 c35 c36 c37 c38 c39 c40 c41 c42 c43 c44 c45 c46 c47 c48 c49 c50 c51 c52 c53 c54 c55 c56 c57 c58 c59 c60 c61 c62 c63 c64 {
+  '_NeoPixel_ensureInitialized'
+  for i 64 {
+    if ((size _np_pixels) >= i) {atPut (65 - i) _np_pixels (argOrDefault i 'default')}
+  }
+  '_NeoPixel_update'
+}
