@@ -5019,6 +5019,10 @@ msgstr "返回CoCube电池电量百分比"
 msgid "OnbotsESP32"
 msgstr "arduino-start-esp32套件"
 
+#. OnbotsESP32 library author
+msgid "wang cheng"
+msgstr "曾望成"
+
 #. OnbotsESP32 library block
 msgid "#SVG#square#4852bf init led display _"
 msgstr "#SVG#square#4852bf 设置数码管连接到引脚 _"

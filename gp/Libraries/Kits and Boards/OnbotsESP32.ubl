@@ -1,27 +1,27 @@
 module 'OnbotsESP32' MyBlocks
-author 'wang cheng'
-version 1 0 
+author 'wang cheng' 'Znatok Tech.'
+version 1 1 
 depends 'dec2anyBase' 'Distance (HC-SR04)' 'Servo' 'Tone' 'Color' 'NeoPixel'
 choices onbots_pins 'IO0' 'IO1' 'IO3' 'IO4' 'IO5'
 choices onbots_display_mark1 'display_mark1;empty' 'display_mark1;celsius' 'display_mark1;colon' 'display_mark1;decile' 'display_mark1;centimeter'
 choices onbots_display_mark2 'display_mark2;empty' 'display_mark2;error' 'display_mark2;mA' 'display_mark2;kelvin' 'display_mark2;ohm' 'display_mark2;kilohm' 'display_mark2;voltage' 'display_mark2;lux' 'display_mark2;dB'
-description ''
+description 'Use for OnbotsESP32C3 board'
 variables _numSegments _thermistor _soundpin _soundwindow _sounddebounce _soundclapthr _soundclapstartmillis _soundloudness _RGBPIN_R _RGBPIN_G _RGBPIN_B
 
   spec ' ' 'init led display' '#SVG#square#4852bf init led display _' 'menu.onbots_pins' 'IO1'
   spec ' ' 'init led light' '#SVG#test init led light _' 'menu.onbots_pins' 'IO1'
-  spec ' ' 'led display send' '#SVG#phototransistor led display send _ _ _' 'num menu.onbots_display_mark1 menu.onbots_display_mark2' 10 'display_mark1;empty' 'display_mark2;empty'
-  spec ' ' 'led light send' '#SVG#square11#4852bf led light send _' 'num' 1
+  spec ' ' 'led display send' '#SVG#phototransistor led display send _ _ _' 'num menu.onbots_display_mark1 menu.onbots_display_mark2' 1234 'display_mark1;empty' 'display_mark2;empty'
+  spec ' ' 'led light send' '#SVG#square11#4852bf led light send _' 'num' 3
   space
   spec 'r' 'light level' '#SVG#square11#9f42a5 light level(lux) pulluppin _ readpin _' 'menu.onbots_pins menu.onbots_pins' 'IO1' 'IO3'
   spec 'r' 'temperature' '#SVG#square11#9f42a5 temperature(°C) pulluppin _ readpin _' 'menu.onbots_pins menu.onbots_pins' 'IO1' 'IO3'
   spec 'r' 'slide rheostat' '#SVG#square11#9f42a5 slide rheostat pulluppin _ readpin _' 'menu.onbots_pins menu.onbots_pins' 'IO1' 'IO3'
   spec 'r' 'read button' '#SVG#square11#9f42a5 read button _' 'menu.onbots_pins' 'IO1'
   space
-  spec ' ' 'sound clapthr' '#SVG#square11#9f42a5 sound clapthr _' 'num' 300
   spec ' ' 'sound pin' '#SVG#square11#9f42a5 sound pulluppin _ readpin _' 'menu.onbots_pins menu.onbots_pins' 'IO1' 'IO3'
-  spec 'r' 'sound clap' '#SVG#square11#9f42a5 sound clap'
+  spec ' ' 'sound clapthr' '#SVG#square11#9f42a5 sound clapthr _' 'num' 300
   spec 'r' 'sound level' '#SVG#square11#9f42a5 sound level(dB)'
+  spec 'r' 'sound clap' '#SVG#square11#9f42a5 sound clap'
   space
   spec ' ' 'set RGB' 'set RGB _ _ _ (0~255)' 'num num num' 255 0 0
   spec ' ' 'set RGB color' 'set RGB color _' 'color'
@@ -35,6 +35,11 @@ variables _numSegments _thermistor _soundpin _soundwindow _sounddebounce _soundc
   spec 'r' '_onbots_iotopins' '_onbots_iotopins _' 'menu.onbots_pins' 'IO5'
   spec 'r' '_onbots_display_mark1' '_onbots_display_mark1 _' 'menu.onbots_display_mark1' 'null'
   spec 'r' '_onbots_display_mark2' '_onbots_display_mark2 _' 'menu.onbots_display_mark2' 'null'
+  spec 'r' 'display8x8Slot' 'led_image8x8 _' 'display8x8Slot' '0101000000000000000000000000000000000000000000000000000000000000'
+
+to 'display8x8Slot' aString {
+  return aString
+}
 
 to '_onbots_iotopins' pin {
   if (pin == 'IO0') {
@@ -188,8 +193,9 @@ if use photistoristor, should divide by two'
 to 'temperature' pulluppin readpin {
   comment '10k pullup register return ℃'
   local 'T' 0
+  _thermistor = (_onbots_iotopins readpin)
   digitalWriteOp (_onbots_iotopins pulluppin) true
-  R = (((analogReadOp (_onbots_iotopins readpin)) * 10000) / (1023 - (analogReadOp (_onbots_iotopins readpin))))
+  R = (((analogReadOp _thermistor) * 10000) / (1023 - (analogReadOp _thermistor)))
   if (R > 30000) {
     T = (113000 - (R * 3))
   } (R > 10000) {
