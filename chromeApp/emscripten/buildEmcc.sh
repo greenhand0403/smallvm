@@ -24,8 +24,19 @@ cp ../../ide/* runtime/lib
 mv runtime/lib/MicroBlocksPatches.gp runtime/lib/zzzMicroBlocksPatches.gp # makes patches load last
 cp -r ../../translations .
 cp -r ../../img .
-# for windows build use emcc.bat
-emcc.bat -std=gnu99 -Wall -O3 \
+
+# choose emcc command by environment
+UNAME_S="$(uname -s)"
+case "$UNAME_S" in
+  MINGW*|MSYS*|CYGWIN*)
+    EMCC_CMD="emcc.bat"
+    ;;
+  *)
+    EMCC_CMD="emcc"
+    ;;
+esac
+
+"$EMCC_CMD" -std=gnu99 -Wall -O3 \
 -Wno-macro-redefined \
 -D EMSCRIPTEN \
 -D NO_JPEG \
