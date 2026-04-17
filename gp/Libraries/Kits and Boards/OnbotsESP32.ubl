@@ -1,7 +1,7 @@
 module 'OnbotsESP32' MyBlocks
 author 'wang cheng' 'Znatok Tech.'
 version 1 1 
-depends 'dec2anyBase' 'Distance (HC-SR04)' 'Servo' 'Tone' 'Color' 'NeoPixel'
+depends 'dec2anyBase' 'Distance (HC-SR04)' 'Servo' 'Tone' 'Color' 'NeoPixel' 'LED Matrix 8x8'
 choices onbots_pins 'IO0' 'IO1' 'IO3' 'IO4' 'IO5'
 choices onbots_display_mark1 'display_mark1;empty' 'display_mark1;celsius' 'display_mark1;colon' 'display_mark1;decile' 'display_mark1;centimeter'
 choices onbots_display_mark2 'display_mark2;empty' 'display_mark2;error' 'display_mark2;mA' 'display_mark2;kelvin' 'display_mark2;ohm' 'display_mark2;kilohm' 'display_mark2;voltage' 'display_mark2;lux' 'display_mark2;dB'
@@ -35,11 +35,6 @@ variables _numSegments _thermistor _soundpin _soundwindow _sounddebounce _soundc
   spec 'r' '_onbots_iotopins' '_onbots_iotopins _' 'menu.onbots_pins' 'IO5'
   spec 'r' '_onbots_display_mark1' '_onbots_display_mark1 _' 'menu.onbots_display_mark1' 'null'
   spec 'r' '_onbots_display_mark2' '_onbots_display_mark2 _' 'menu.onbots_display_mark2' 'null'
-  spec 'r' 'display8x8Slot' 'led_image8x8 _' 'display8x8Slot' '0101000000000000000000000000000000000000000000000000000000000000'
-
-to 'display8x8Slot' aString {
-  return aString
-}
 
 to '_onbots_iotopins' pin {
   if (pin == 'IO0') {
@@ -292,4 +287,266 @@ to setNeoPixelColors64 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 c15 c16 c1
     if ((size _np_pixels) >= i) {atPut (65 - i) _np_pixels (argOrDefault i 'default')}
   }
   '_NeoPixel_update'
+}
+
+module 'LED Matrix 8x8' Output
+author 'Znatok Tech.'
+version 1 1 
+choices led_imageMenu heart 'small heart' yes no happy sad confused angry asleep surprised silly fabulous meh 't-shirt' 'roller skate' duck house tortoise butterfly 'stick figure' ghost sword giraffe skull umbrella snake rabbit cow 'quarter note' 'eight note' pitchfork target triangle 'left triangle' 'chess board' diamond 'small diamond' square 'small square' scissors 
+description 'A variant based on the original LED display library (author microblocks, version v1.13).
+
+Use neopixel 8x8 LED matrix
+
+'
+variables _obLEDMatrixColor ledMatrixScrollTime _lastLEDMatrixUpdate _lastLEDMatrixScroll _curLEDMatrixScrollCount _curLEDMatrixScrollBuffer _curLEDMatrixScrollBufferInd _curLEDMatrixScrollBufferLen
+
+  spec ' ' 'init_ledMatrixPins' 'init_ledMatrixPins _' 'menu.onbots_pins' 'IO1'
+  spec ' ' 'set_ledmatrix_color' 'set_ledmatrix_color _' 'color'
+  spec 'r' 'led_image8x8' 'led_image8x8 _' 'display8x8Slot' '0101000000000000000000000000000000000000000000000000000000000000'
+  space
+  spec 'r' '_declist_to_str64' '_declist_to_str64 _' 'auto'
+  spec 'r' '_str64_to_declist' '_str64_to_declist _' 'str' '0101000000000000000000000000000000000000000000000000000000000000'
+  spec 'r' '_led_textData1' '_led_textData1'
+  spec 'r' '_led_textData2' '_led_textData2'
+  spec 'r' '_led_imageData1' '_led_imageData1'
+  spec 'r' '_led_imageData2' '_led_imageData2'
+  spec 'r' 'led_textImage' 'char _ image' 'str' 'a'
+  spec 'r' 'led_namedImage' 'led_namedImage _' 'menu.led_imageMenu' 'happy'
+  space
+  spec ' ' 'LED_matrix_show' 'LED matrix show _' 'display8x8Slot' '0101000000000000000000000000000000000000000000000000000000000000'
+  spec ' ' '_LED_matrix_show' 'LED matrix show list _' 'str' '[80,0,0,...](8items)'
+  spec ' ' 'LED_matrix_update' 'LED matrix update'
+  spec 'r' '_get_LED_matrix_left_shift_result' 'LED matrix show _ left shift _ bit,reverse? _ mix with _' 'num num bool num' 31761856 1 false 33554431
+  spec ' ' 'LED_matrix_show_scroll_string' 'LED matrix show string scroll _' 'str' '10'
+
+to 'init_ledMatrixPins' pin {
+  neoPixelAttach 64 (_onbots_iotopins pin)
+  comment '字符滚动显示间隔'
+  ledMatrixScrollTime = 200
+  comment '字符滚动计数'
+  _curLEDMatrixScrollCount = 0
+  _curLEDMatrixScrollBuffer = 0
+  _curLEDMatrixScrollBufferInd = 0
+  _curLEDMatrixScrollBufferLen = 0
+}
+
+to 'set_ledmatrix_color' c {
+  _obLEDMatrixColor = c
+}
+
+to 'led_image8x8' aString {
+  return aString
+}
+
+to '_declist_to_str64' list_input {
+  comment 'input list:[255,80,80...](8items)'
+  local 'result' ('[data:toString]' '')
+  local 'list_cursor' 1
+  repeat 8 {
+    local 'list_item' ('dec2any Base' '2' (at list_cursor list_input) 8 false)
+    local 'list_item_cursor' 1
+    repeat 8 {
+      if ((at list_item_cursor list_item) == ('[data:toString]' '1')) {
+        result = ('[data:join]' result '1')
+      } else {
+        result = ('[data:join]' result '0')
+      }
+      list_item_cursor += 1
+    }
+    list_cursor += 1
+  }
+  return result
+}
+
+to '_str64_to_declist' str_input {
+  comment 'input string:010100000...(64bits)'
+  local 'result' ('[data:makeList]')
+  local 'str_cursor' 1
+  repeat 8 {
+    local 'u8' 0
+    repeat 8 {
+      u8 = (u8 << 1)
+      if ((at str_cursor str_input) == ('[data:toString]' '1')) {
+        u8 = (u8 | 1)
+      } else {
+        u8 = (u8 | 0)
+      }
+      str_cursor += 1
+    }
+    '[data:addLast]' u8 result
+  }
+  return result
+}
+
+to '_led_textData1' {
+  return 'a:0,0,0,28,36,36,36,26|b:32,32,56,36,36,56,0,0|c:24,36,32,32,36,24,0,0|d:4,4,28,36,36,28,0,0|e:24,36,60,32,36,24,0,0|f:12,16,56,16,16,16,0,0|g:24,36,36,28,4,56,0,0|h:32,32,56,36,36,36,0,0|i:8,0,24,8,8,28,0,0|j:4,0,12,4,4,36,24,0|k:32,32,36,40,48,40,36,0|l:24,8,8,8,8,28,0,0|m:0,0,52,42,42,42,0,0|n:0,0,56,36,36,36,0,0|o:0,0,24,36,36,24,0,0|p:0,0,56,36,36,56,32,32|q:0,0,28,36,36,28,4,4|r:0,0,52,40,32,32,0,0|s:0,0,28,32,24,4,56,0|t:16,16,56,16,16,12,0,0|u:0,0,36,36,36,28,0,0|v:0,0,36,36,24,24,0,0|w:0,0,34,42,42,20,0,0|x:0,0,36,24,24,36,0,0|y:0,0,36,36,28,4,56,0|z:0,0,60,8,16,60,0,0|.:0,0,0,0,0,0,0,2|/:1,2,4,8,16,32,64,128|$:40,60,104,104,56,44,44,120|%:0,97,98,4,8,16,38,70|!:24,24,24,24,24,24,0,24|?:0,24,36,36,8,8,0,8|'
+}
+
+to '_led_textData2' {
+  return 'A:24,36,66,126,66,66,0,0|B:124,66,124,66,66,124,0,0|C:60,66,64,64,66,60,0,0|D:120,68,66,66,68,120,0,0|E:126,64,124,64,64,126,0,0|F:126,64,124,64,64,64,0,0|G:60,66,64,78,66,60,0,0|H:66,66,126,66,66,66,0,0|I:62,8,8,8,8,62,0,0|J:30,4,4,4,68,56,0,0|K:66,68,120,68,66,66,0,0|L:64,64,64,64,64,126,0,0|M:66,102,90,66,66,66,0,0|N:66,98,82,74,70,66,0,0|O:60,66,66,66,66,60,0,0|P:124,66,66,124,64,64,0,0|Q:60,66,66,74,68,58,0,0|R:124,66,66,124,68,66,0,0|S:60,64,60,2,66,60,0,0|T:127,8,8,8,8,8,0,0|U:66,66,66,66,66,60,0,0|V:66,66,66,36,36,24,0,0|W:66,66,66,90,102,66,0,0|X:66,36,24,24,36,66,0,0|Y:66,36,24,8,8,8,0,0|Z:126,4,24,32,64,126,0,0|'
+}
+
+to '_led_imageData1' {
+  return 'heart:102,255,255,255,126,60,24,0|small heart:0,36,126,126,60,24,0,0|yes:0,1,2,68,40,16,0,0|no:129,66,36,24,24,36,66,129|happy:0,102,102,0,0,129,66,60|sad:0,102,102,0,0,60,66,129|confused:0,102,102,0,24,36,4,56|angry:66,36,102,0,0,126,66,60|asleep:0,126,6,12,24,48,126,0|surprised:24,36,36,24,24,0,24,0|silly:0,102,102,0,0,126,24,36|fabulous:255,102,102,0,0,126,126,60|meh:0,102,102,0,0,126,0,0|t-shirt:0,231,231,231,60,60,60,60|roller skate:0,2,7,7,255,254,108,108|duck:0,0,48,240,63,60,60,0|house:24,60,126,255,129,129,255,0|tortoise:0,0,0,60,255,36,0,0|butterfly:102,255,126,60,60,126,255,102|stick figure:24,24,126,24,24,36,66,0|ghost:60,126,219,255,255,255,165,0|sword:24,24,24,24,24,24,60,24|giraffe:224,32,32,32,32,60,36,36|skull:60,126,219,255,189,255,102,0|'
+}
+
+to '_led_imageData2' {
+ return 'umbrella:60,126,255,24,24,36,66,0|snake:60,66,64,60,2,66,60,0|rabbit:36,36,36,60,126,126,36,0|cow:0,66,102,60,126,36,36,0|quarter note:24,24,24,24,28,30,12,0|eight note:12,12,12,28,60,108,108,0|pitchfork:0,153,153,153,255,24,24,24|target:24,60,126,219,126,60,24,0|triangle:24,60,126,255,0,0,0,0|left triangle:16,48,112,240,112,48,16,0|chess board:85,170,85,170,85,170,85,170|diamond:24,60,102,195,102,60,24,0|small diamond:0,24,60,24,0,0,0,0|square:255,129,129,129,129,129,255,0|small square:0,60,36,36,60,0,0,0|scissors:195,102,60,24,60,102,195,0|'
+}
+
+to led_namedImage name {
+  local 'database' ('_led_imageData1')
+  local 'i' ('[data:find]' name database)
+  if (i == -1) {
+    database = ('_led_imageData2')
+    i = ('[data:find]' name database)
+    if (i == -1) {
+      comment 'Name not found'
+      return 0
+    }
+  }
+  local 'start' (('[data:find]' ':' database i) + 1)
+  local 'end' (('[data:find]' '|' database i) - 1)
+  comment 'change item to number'
+  local 'tmp' ('[data:split]' ('[data:copyFromTo]' database start end) ',')
+  i = 1
+  repeat 8 {
+    atPut i tmp ('[data:convertType]' (at i tmp) 'number')
+    i += 1
+  }
+  return tmp
+}
+
+to led_textImage s {
+  if (s == ':') {
+    return ('[data:makeList]' 0 0 0 8 0 0 8 0)
+  }
+  if (s == '1') {
+    return ('[data:makeList]' 0 8 24 8 8 8 8 28)
+  }
+  if (s == '2') {
+    return ('[data:makeList]' 0 24 36 4 8 16 32 60)
+  }
+  if (s == '3') {
+    return ('[data:makeList]' 0 24 36 4 8 4 36 24)
+  }
+  if (s == '4') {
+    return ('[data:makeList]' 0 0 24 40 40 60 8 8)
+  }
+  if (s == '5') {
+    return ('[data:makeList]' 0 0 28 32 32 28 4 56)
+  }
+  if (s == '6') {
+    return ('[data:makeList]' 0 0 24 36 32 56 36 24)
+  }
+  if (s == '7') {
+    return ('[data:makeList]' 0 0 60 4 8 16 16 16)
+  }
+  if (s == '8') {
+    return ('[data:makeList]' 0 24 36 36 24 36 36 24)
+  }
+  if (s == '9') {
+    return ('[data:makeList]' 0 24 36 36 28 8 16 32)
+  }
+  if (s == '0') {
+    return ('[data:makeList]' 0 24 36 36 36 36 36 24)
+  }
+  if (s == ',') {
+    return ('[data:makeList]' 0 0 0 0 0 12 12 16)
+  }
+  if (s == ' ') {
+    return ('[data:makeList]' 0 0 0 0 0 0 0 0)
+  }
+  local 'database' ('_led_textData1')
+  local 'i' ('[data:find]' s database)
+  if (i == -1) {
+    database = ('_led_textData2')
+    i = ('[data:find]' s database)
+    if (i == -1) {
+      comment 'Character not found'
+      return ('[data:makeList]' 0 0 0 0 0 0 0 0)
+    }
+  }
+  local 'start' (('[data:find]' ':' database i) + 1)
+  local 'end' (('[data:find]' '|' database i) - 1)
+  comment 'change item to number'
+  local 'tmp' ('[data:split]' ('[data:copyFromTo]' database start end) ',')
+  i = 1
+  repeat 8 {
+    atPut i tmp ('[data:convertType]' (at i tmp) 'number')
+    i += 1
+  }
+  return tmp
+}
+
+to LED_matrix_show foo {
+  '_NeoPixel_ensureInitialized'
+  for i 64 {
+    if ((at i foo) == ('[data:toString]' '1')) {
+      atPut (65 - i) _np_pixels _obLEDMatrixColor
+    } else {
+      atPut (65 - i) _np_pixels 0
+    }
+  }
+  '_NeoPixel_update'
+}
+
+to '_LED_matrix_show' foo {
+  foo = ('_declist_to_str64' foo)
+  'LED_matrix_show' foo
+}
+
+to LED_matrix_show_scroll_string foo {
+  if (0 == _curLEDMatrixScrollCount) {
+    _curLEDMatrixScrollCount = 1
+    _curLEDMatrixScrollBuffer = ('[data:join]' ' ' foo ' ')
+    _curLEDMatrixScrollBufferInd = 1
+    _curLEDMatrixScrollBufferLen = ((size foo) - 1)
+  }
+}
+
+to LED_matrix_update {
+  if (and (_curLEDMatrixScrollCount != 0) (((millisOp) - _lastLEDMatrixScroll) >= ledMatrixScrollTime)) {
+    if (_curLEDMatrixScrollBufferInd <= _curLEDMatrixScrollBufferLen) {
+      if (_curLEDMatrixScrollCount <= 9) {
+        '_LED_matrix_show' ('led show' (led_textImage (at _curLEDMatrixScrollBufferInd _curLEDMatrixScrollBuffer)) (_curLEDMatrixScrollCount - 1) false ('led show' (led_textImage (at (_curLEDMatrixScrollBufferInd + 1) _curLEDMatrixScrollBuffer)) (10 - _curLEDMatrixScrollCount) true (led_textImage ' ')))
+        if (_curLEDMatrixScrollCount == 9) {
+          _curLEDMatrixScrollCount = 1
+          _curLEDMatrixScrollBufferInd += 1
+        } else {
+          _curLEDMatrixScrollCount += 1
+        }
+      }
+    } else {
+      _curLEDMatrixScrollCount = 0
+    }
+    _lastLEDMatrixScroll = (millisOp)
+  }
+}
+
+to '_get_LED_matrix_left_shift_result' foo bar baz quux {
+  local 'ret' ('[data:makeList]')
+  local 'item_foo' 0
+  local 'item_quux' 0
+  for i 8 {
+    item_foo = (at i foo)
+    item_quux = (at i quux)
+    if baz {
+      item_foo = (item_foo >> bar)
+    } else {
+      item_foo = (item_foo << bar)
+      if (item_foo > 255) {
+        repeatUntil (item_foo <= 255) {
+          item_foo = (item_foo - 256)
+        }
+      }
+    }
+    if ('255,255,255,255,255,255,255,255' == ('[data:joinStrings]' quux)) {
+      item_foo = (item_foo & item_quux)
+    } else {
+      item_foo = (item_foo | item_quux)
+    }
+    '[data:addLast]' item_foo ret
+  }
+  return ret
 }
