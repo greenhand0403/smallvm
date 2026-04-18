@@ -298,7 +298,7 @@ description 'A variant based on the original LED display library (author microbl
 Use neopixel 8x8 LED matrix
 
 '
-variables _obLEDMatrixColor ledMatrixScrollTime _lastLEDMatrixUpdate _lastLEDMatrixScroll _curLEDMatrixScrollCount _curLEDMatrixScrollBuffer _curLEDMatrixScrollBufferInd _curLEDMatrixScrollBufferLen
+variables _obLEDMatrixColor ledMatrixScrollTime _lastLEDMatrixUpdate _lastLEDMatrixScroll _curLEDMatrixScrollCount _curLEDMatrixScrollBuffer _curLEDMatrixScrollBufferInd _curLEDMatrixScrollBufferLen _curLEDMatrixScrollChar1 _curLEDMatrixScrollChar2
 
   spec ' ' 'init_ledMatrixPins' 'init_ledMatrixPins _' 'menu.onbots_pins' 'IO1'
   spec ' ' 'set_ledmatrix_color' 'set_ledmatrix_color _' 'color'
@@ -322,12 +322,14 @@ variables _obLEDMatrixColor ledMatrixScrollTime _lastLEDMatrixUpdate _lastLEDMat
 to 'init_ledMatrixPins' pin {
   neoPixelAttach 64 (_onbots_iotopins pin)
   comment '字符滚动显示间隔'
-  ledMatrixScrollTime = 200
+  ledMatrixScrollTime = 300
   comment '字符滚动计数'
   _curLEDMatrixScrollCount = 0
   _curLEDMatrixScrollBuffer = 0
   _curLEDMatrixScrollBufferInd = 0
   _curLEDMatrixScrollBufferLen = 0
+  _curLEDMatrixScrollChar1 = ('[data:toString]' ' ')
+  _curLEDMatrixScrollChar2 = ('[data:toString]' ' ')
 }
 
 to 'set_ledmatrix_color' c {
@@ -501,18 +503,22 @@ to LED_matrix_show_scroll_string foo {
     _curLEDMatrixScrollCount = 1
     _curLEDMatrixScrollBuffer = ('[data:join]' ' ' foo ' ')
     _curLEDMatrixScrollBufferInd = 1
-    _curLEDMatrixScrollBufferLen = ((size foo) - 1)
+    _curLEDMatrixScrollBufferLen = (size _curLEDMatrixScrollBuffer)
+    _curLEDMatrixScrollChar1 = (led_textImage (at 1 _curLEDMatrixScrollBuffer))
+    _curLEDMatrixScrollChar2 = (led_textImage (at 2 _curLEDMatrixScrollBuffer))
   }
 }
 
 to LED_matrix_update {
   if (and (_curLEDMatrixScrollCount != 0) (((millisOp) - _lastLEDMatrixScroll) >= ledMatrixScrollTime)) {
-    if (_curLEDMatrixScrollBufferInd <= _curLEDMatrixScrollBufferLen) {
+    if (_curLEDMatrixScrollBufferInd < _curLEDMatrixScrollBufferLen) {
       if (_curLEDMatrixScrollCount <= 9) {
-        '_LED_matrix_show' ('led show' (led_textImage (at _curLEDMatrixScrollBufferInd _curLEDMatrixScrollBuffer)) (_curLEDMatrixScrollCount - 1) false ('led show' (led_textImage (at (_curLEDMatrixScrollBufferInd + 1) _curLEDMatrixScrollBuffer)) (10 - _curLEDMatrixScrollCount) true (led_textImage ' ')))
+        '_LED_matrix_show' ('_get_LED_matrix_left_shift_result' _curLEDMatrixScrollChar1 (_curLEDMatrixScrollCount - 1) false ('_get_LED_matrix_left_shift_result' _curLEDMatrixScrollChar2 (10 - _curLEDMatrixScrollCount) true (led_textImage ' ')))
         if (_curLEDMatrixScrollCount == 9) {
           _curLEDMatrixScrollCount = 1
           _curLEDMatrixScrollBufferInd += 1
+          _curLEDMatrixScrollChar1 = (led_textImage (at _curLEDMatrixScrollBufferInd _curLEDMatrixScrollBuffer))
+          if (_curLEDMatrixScrollBufferInd < _curLEDMatrixScrollBufferLen) {_curLEDMatrixScrollChar2 = (led_textImage (at (_curLEDMatrixScrollBufferInd + 1) _curLEDMatrixScrollBuffer))}
         } else {
           _curLEDMatrixScrollCount += 1
         }
